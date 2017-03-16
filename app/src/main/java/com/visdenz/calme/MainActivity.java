@@ -1,5 +1,6 @@
 package com.visdenz.calme;
 
+import android.content.Intent;
 import android.speech.tts.TextToSpeech;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -13,7 +14,7 @@ import java.util.Locale;
 public class MainActivity extends AppCompatActivity implements TextToSpeech.OnInitListener {
 
     private TextToSpeech tts;
-    private Button ttsButton;
+    private Button ttsButton, mapButton;
     private EditText ttsInputField;
 
     @Override
@@ -23,12 +24,21 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
 
         tts = new TextToSpeech(this, this);
         ttsButton = (Button) findViewById(R.id.ttsButton);
+        mapButton = (Button) findViewById(R.id.mapButton);
         ttsInputField = (EditText) findViewById(R.id.ttsInputField);
 
         ttsButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 speakOut();
+            }
+        });
+
+        mapButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent i = new Intent(MainActivity.this, MapsActivity.class);
+                startActivity(i);
             }
         });
 
