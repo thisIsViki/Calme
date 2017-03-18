@@ -44,8 +44,8 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
         speakButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-//                promptSpeechInput();
-                getUnreadSMS();
+                promptSpeechInput();
+//                getUnreadSMS();
             }
         });
     }
@@ -106,7 +106,7 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
         if(cursor.getCount() != 0) {
             if(cursor.moveToFirst()) {
                 do {
-                    sms += "From " + formatFromAddressSMS(cursor.getString(2)) + " Message Content " + cursor.getString(13) + "\n";
+                    sms += "From " + formatMsg(cursor.getString(2)) + " Message Content " + formatMsg(cursor.getString(13)) + "\n";
                 } while(cursor.moveToNext());
             }
         }
@@ -116,7 +116,7 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
         speakOut(sms);
     }
 
-    private String formatFromAddressSMS(String sender) {
+    private String formatMsg(String sender) {
         StringBuilder sb = new StringBuilder();
         for(char c : sender.toCharArray()) {
             if(Character.isDigit(c)) {
@@ -126,7 +126,6 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                 sb.append(c);
             }
         }
-        Log.i("num", sb.toString());
         return sb.toString();
     }
 
@@ -155,7 +154,7 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                     || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                 Log.e("TTS", "This Language is not supported");
             } else {
-                speakOut("Hi i'm calme");
+
             }
         } else {
             Log.e("TTS", "Initilization Failed!");
