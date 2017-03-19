@@ -1,6 +1,7 @@
 package com.visdenz.calme;
 
 import android.Manifest;
+import android.app.PendingIntent;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -8,10 +9,12 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.telephony.SmsManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageButton;
@@ -20,17 +23,20 @@ import android.widget.TextView;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity implements TextToSpeech.OnInitListener {
 
     private static final int REQUEST_SPEECH_INPUT_CODE = 100;
     private static final int MY_PERMISSION_READ_SMS = 101;
+    private static final int MY_PERMISSION_SEND_SMS = 102;
     private static final CharSequence GO_TO_MAP = "go to";
     private static final CharSequence READ_SMS = "read SMS";
+    private static final CharSequence SEND_MY_SMS = "send SMS";
     private TextView speechText;
-    private ImageButton speakButton;
     private TextToSpeech tts;
+    private String phoneNo, msgContent;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,16 +44,9 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
         setContentView(R.layout.activity_main);
 
         speechText = (TextView) findViewById(R.id.speechText);
-        speakButton = (ImageButton) findViewById(R.id.speakButton);
         tts = new TextToSpeech(this, this);
 
-        speakButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                promptSpeechInput();
-//                getUnreadSMS();
-            }
-        });
+        promptSpeechInput();
     }
 
     private void promptSpeechInput() {
@@ -83,7 +82,7 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                         mapIntent.setPackage("com.google.android.apps.maps");
                         startActivity(mapIntent);
                     }
-                    if(words.contains(READ_SMS)) {
+                    else if(words.contains(READ_SMS)) {
                         if(ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
                             if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.READ_SMS)) {
                                 Log.i("permission", "should show request permission rationale");
@@ -95,8 +94,49 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                             getUnreadSMS();
                         }
                     }
+                    else if(words.contains(SEND_MY_SMS)) {
+                        if(ActivityCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+                            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.SEND_SMS)) {
+                                Log.i("permission", "should show request permission rationale");
+                            } else {
+                                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.SEND_SMS}, MY_PERMISSION_SEND_SMS);
+                            }
+                        }
+                        else {
+                            speakOut("To whom");
+                        }                        
+                    }
+                    else if(words.contains("contact")) {
+                        phoneNo = words.replace("contact ", "");
+                        speakOut("Say Message Body");
+                    }
+                    else if(words.contains("type")) {
+                        msgContent = words.replace("type", "");
+                        sendSMS();
+                    }
+                    else {
+                        speakOut("Command not recognized. Please try again.");
+                    }
+                }
+                else {
+                    speakOut("Please try again.");
                 }
             }
+        }
+    }
+
+    private void sendSMS() {
+        Log.i("msg", "To = " + phoneNo);
+        Log.i("msg", "Body = " + msgContent);
+        Intent smsIntent = new Intent(getApplicationContext(), MainActivity.class);
+        PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0, smsIntent, 0);
+        SmsManager smsManager = SmsManager.getDefault();
+        if(phoneNo != null && msgContent != null) {
+            smsManager.sendTextMessage(phoneNo, null, msgContent, pi, null);
+            speakOut("Message Sent Successfully");
+        }
+        else {
+            speakOut("Message Address or Content is not proper. Please try again");
         }
     }
 
@@ -132,8 +172,13 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if(requestCode == MY_PERMISSION_READ_SMS) {
-            getUnreadSMS();
+        switch (requestCode) {
+            case MY_PERMISSION_READ_SMS: {
+                getUnreadSMS();
+            }
+            case MY_PERMISSION_SEND_SMS: {
+                speakOut("To whom");
+            }
         }
     }
 
@@ -156,12 +201,30 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
             } else {
 
             }
+            tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                @Override
+                public void onStart(String utteranceId) {
+                }
+
+                @Override
+                public void onDone(String utteranceId) {
+                    promptSpeechInput();
+                    speechText.setText("");
+                }
+
+                @Override
+                public void onError(String utteranceId) {
+                    Log.i("msg", "speech error");
+                }
+            });
         } else {
             Log.e("TTS", "Initilization Failed!");
         }
     }
 
     private void speakOut(String textToSpeak) {
-        tts.speak(textToSpeak, TextToSpeech.QUEUE_FLUSH, null);
+        HashMap<String, String> map = new HashMap<String, String>();
+        map.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "UniqueID");
+        tts.speak(textToSpeak, TextToSpeech.QUEUE_FLUSH, map);
     }
 }
