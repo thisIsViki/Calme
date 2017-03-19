@@ -6,6 +6,10 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.net.Uri;
 import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
@@ -19,6 +23,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -26,7 +31,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 
-public class MainActivity extends AppCompatActivity implements TextToSpeech.OnInitListener {
+public class MainActivity extends AppCompatActivity implements TextToSpeech.OnInitListener, SensorEventListener {
 
     private static final int REQUEST_SPEECH_INPUT_CODE = 100;
     private static final int MY_PERMISSION_READ_SMS = 101;
@@ -37,6 +42,9 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
     private TextView speechText;
     private TextToSpeech tts;
     private String phoneNo, msgContent;
+    private SensorManager sensorManager;
+    private long lastUpdate;
+    private boolean isActivityVisible = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,6 +53,9 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
 
         speechText = (TextView) findViewById(R.id.speechText);
         tts = new TextToSpeech(this, this);
+
+        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        lastUpdate = System.currentTimeMillis();
 
         promptSpeechInput();
     }
@@ -192,6 +203,19 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        isActivityVisible = false;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        isActivityVisible = true;
+        sensorManager.registerListener(this, sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_NORMAL);
+    }
+
+    @Override
     public void onInit(int status) {
         if (status == TextToSpeech.SUCCESS) {
             int result = tts.setLanguage(Locale.US);
@@ -225,5 +249,42 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
         HashMap<String, String> map = new HashMap<String, String>();
         map.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "UniqueID");
         tts.speak(textToSpeak, TextToSpeech.QUEUE_FLUSH, map);
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            getAccelerometer(event);
+        }
+    }
+
+    private void getAccelerometer(SensorEvent event) {
+        float[] values = event.values;
+        float x = values[0];
+        float y = values[1];
+        float z = values[2];
+        float accelationSquareRoot = (x*x + y*y + z*z)
+                / (SensorManager.GRAVITY_EARTH * SensorManager.GRAVITY_EARTH);
+        long actualTime = System.currentTimeMillis();
+        if (accelationSquareRoot >= 2) {
+            if (actualTime-lastUpdate < 200) {
+                return;
+            }
+            lastUpdate = actualTime;
+            Log.i("msg", "Device Shaked");
+            if(!isActivityVisible) {
+                Log.i("msg", "Activity Started");
+                Intent mainActivityIntent = new Intent(MainActivity.this, MainActivity.class);
+                startActivity(mainActivityIntent);
+            }
+            else {
+                Log.i("msg", "Activity not visible");
+            }
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
     }
 }
