@@ -209,7 +209,6 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                 @Override
                 public void onDone(String utteranceId) {
                     promptSpeechInput();
-                    speechText.setText("");
                 }
 
                 @Override
